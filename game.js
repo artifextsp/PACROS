@@ -57,13 +57,13 @@ const GHOST_COLORS = ['#FF0000', '#FFB8DE', '#00FFFF', '#FFB852'];
 const GHOST_NAMES = ['Blinky', 'Pinky', 'Inky', 'Clyde'];
 
 // Configuración por nivel (velocidades en tiles/ms)
-// A 60fps (delta~16.67ms): pacSpeed 0.005 → ~5 tiles/s, ghostSpeed 0.003 → ~3 tiles/s
+// A 60fps (delta~16.67ms): pacSpeed 0.0025 → ~2.5 tiles/s, ghostSpeed 0.001 → ~1 tile/s
 const LEVEL_CONFIG = [
-    { ghostSpeed: 0.003,  pacSpeed: 0.005,  frightenedTime: 10000, ghostDelay: [0, 5, 10, 15] },
-    { ghostSpeed: 0.0035, pacSpeed: 0.0055, frightenedTime: 8000,  ghostDelay: [0, 4, 8, 12] },
-    { ghostSpeed: 0.004,  pacSpeed: 0.006,  frightenedTime: 7000,  ghostDelay: [0, 3, 6, 9] },
-    { ghostSpeed: 0.0045, pacSpeed: 0.006,  frightenedTime: 5000,  ghostDelay: [0, 2, 4, 6] },
-    { ghostSpeed: 0.005,  pacSpeed: 0.006,  frightenedTime: 4000,  ghostDelay: [0, 1, 3, 4] },
+    { ghostSpeed: 0.001,  pacSpeed: 0.0025, frightenedTime: 12000, ghostDelay: [0, 8, 16, 24] },
+    { ghostSpeed: 0.0013, pacSpeed: 0.0028, frightenedTime: 10000, ghostDelay: [0, 6, 12, 18] },
+    { ghostSpeed: 0.0016, pacSpeed: 0.003,  frightenedTime: 8000,  ghostDelay: [0, 5, 10, 15] },
+    { ghostSpeed: 0.0018, pacSpeed: 0.003,  frightenedTime: 7000,  ghostDelay: [0, 4, 8, 12] },
+    { ghostSpeed: 0.002,  pacSpeed: 0.003,  frightenedTime: 6000,  ghostDelay: [0, 3, 6, 9] },
 ];
 
 class GameEngine {
@@ -339,12 +339,22 @@ class GameEngine {
     _moverPacman(speed, delta) {
         const moveAmount = speed * delta;
 
-        // Intentar cambiar a la dirección deseada
+        // Intentar cambiar a la dirección deseada cuando está cerca del centro de una celda
         if (this.pacman.nextDir && this.pacman.nextDir !== this.pacman.dir) {
-            const nextX = this.pacman.x + this.pacman.nextDir.x * 0.5;
-            const nextY = this.pacman.y + this.pacman.nextDir.y * 0.5;
-            if (this._canMove(nextX, nextY)) {
-                this.pacman.dir = this.pacman.nextDir;
+            const nearX = Math.abs(this.pacman.x - Math.round(this.pacman.x)) < 0.18;
+            const nearY = Math.abs(this.pacman.y - Math.round(this.pacman.y)) < 0.18;
+
+            if (nearX && nearY) {
+                const cx = Math.round(this.pacman.x);
+                const cy = Math.round(this.pacman.y);
+                const targetX = cx + this.pacman.nextDir.x;
+                const targetY = cy + this.pacman.nextDir.y;
+
+                if (this._canMove(targetX, targetY)) {
+                    this.pacman.x = cx;
+                    this.pacman.y = cy;
+                    this.pacman.dir = this.pacman.nextDir;
+                }
             }
         }
 
@@ -366,6 +376,10 @@ class GameEngine {
         if (this._canMove(newX, newY)) {
             this.pacman.x = newX;
             this.pacman.y = newY;
+        } else {
+            // Snap al grid cuando choca contra un muro para evitar flotar entre celdas
+            this.pacman.x = Math.round(this.pacman.x);
+            this.pacman.y = Math.round(this.pacman.y);
         }
     }
 
@@ -441,7 +455,7 @@ class GameEngine {
 
     // Mover fantasma comido de vuelta a la casa
     _moverFantasmaACasa(ghost, delta) {
-        const speed = 0.008 * delta;
+        const speed = 0.003 * delta;
         const homeX = 9, homeY = 9;
         const dx = homeX - ghost.x;
         const dy = homeY - ghost.y;
@@ -547,7 +561,7 @@ class GameEngine {
             const dy = this.pacman.y - ghost.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            if (dist < 0.6) {
+            if (dist < 0.45) {
                 if (ghost.frightened) {
                     ghost.eaten = true;
                     this.score += 200;
