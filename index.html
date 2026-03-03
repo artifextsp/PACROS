@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Media Rosquilla - Pac-Man Caleño</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- ==================== PANTALLA: INICIO ==================== -->
+    <div id="screen-intro" class="screen active">
+        <div class="intro-container">
+            <div class="logo-area">
+                <div class="donut-logo">🍩</div>
+                <h1 class="game-title">Media<br>Rosquilla</h1>
+                <p class="game-subtitle">Pac-Man Caleño Multijugador</p>
+            </div>
+            <div class="name-form">
+                <label for="player-name">¿Cómo te llamas, parce?</label>
+                <input type="text" id="player-name" placeholder="Tu nombre..." maxlength="15" autocomplete="off">
+                <button id="btn-play" class="btn-primary" disabled>¡A JUGAR!</button>
+            </div>
+            <p class="footer-text">Campaña Rosquillas Caleñas 🇨🇴</p>
+        </div>
+    </div>
+
+    <!-- ==================== PANTALLA: SALA DE ESPERA ==================== -->
+    <div id="screen-waiting" class="screen">
+        <div class="waiting-container">
+            <div class="waiting-logo">🍩</div>
+            <h2>Buscando tu media rosquilla...</h2>
+            <div class="spinner">
+                <div class="spinner-donut">🍩</div>
+            </div>
+            <p id="waiting-status">Conectando con otro jugador...</p>
+            <p id="waiting-timer" class="timer-text"></p>
+            <button id="btn-play-ai" class="btn-secondary" style="display:none;">Jugar con IA mientras esperas</button>
+            <button id="btn-cancel-wait" class="btn-cancel">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- ==================== PANTALLA: PRESENTACIÓN DE JUGADORES ==================== -->
+    <div id="screen-intro-players" class="screen">
+        <div class="players-intro-container">
+            <h2>¡Pareja encontrada!</h2>
+            <div class="players-display">
+                <div class="player-card" id="card-p1">
+                    <div class="player-avatar">🍩</div>
+                    <p class="player-card-name" id="intro-p1-name">Jugador 1</p>
+                </div>
+                <div class="heart-icon">💛</div>
+                <div class="player-card" id="card-p2">
+                    <div class="player-avatar">🍩</div>
+                    <p class="player-card-name" id="intro-p2-name">Jugador 2</p>
+                </div>
+            </div>
+            <p class="intro-message">¡Hola, soy tu media rosquilla! 🎉</p>
+            <p class="intro-submessage">Ambos controlan a Pac-Man juntos.<br>¡Coordínense por el chat!</p>
+            <div class="countdown-display" id="countdown-display">Empieza en <span id="countdown-num">5</span></div>
+        </div>
+    </div>
+
+    <!-- ==================== PANTALLA: JUEGO ==================== -->
+    <div id="screen-game" class="screen">
+        <div class="game-layout">
+            <!-- Header del juego -->
+            <div class="game-header">
+                <div class="hud-left">
+                    <span class="hud-label">Puntaje</span>
+                    <span class="hud-value" id="hud-score">0</span>
+                </div>
+                <div class="hud-center">
+                    <span class="hud-label">Nivel</span>
+                    <span class="hud-value" id="hud-level">1</span>
+                </div>
+                <div class="hud-right">
+                    <span class="hud-label">Vidas</span>
+                    <span class="hud-value" id="hud-lives">❤️❤️❤️</span>
+                </div>
+            </div>
+
+            <!-- Área principal: Canvas + Chat -->
+            <div class="game-main">
+                <div class="canvas-wrapper">
+                    <canvas id="game-canvas"></canvas>
+                    <div id="game-overlay" class="game-overlay" style="display:none;">
+                        <p id="overlay-text">¡LISTO!</p>
+                    </div>
+                </div>
+
+                <!-- Panel de chat (lateral en desktop, colapsable en móvil) -->
+                <div id="chat-panel" class="chat-panel">
+                    <div class="chat-header">
+                        <span>💬 Chat</span>
+                        <button id="btn-toggle-chat" class="btn-chat-toggle">−</button>
+                    </div>
+                    <div class="chat-messages" id="chat-messages"></div>
+                    <div class="chat-input-area">
+                        <input type="text" id="chat-input" placeholder="Escribe..." maxlength="100" autocomplete="off">
+                        <button id="btn-send-chat" class="btn-send">➤</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controles táctiles (solo móvil) -->
+            <div id="touch-controls" class="touch-controls">
+                <div class="dpad">
+                    <button class="dpad-btn dpad-up" data-dir="up">▲</button>
+                    <div class="dpad-middle-row">
+                        <button class="dpad-btn dpad-left" data-dir="left">◄</button>
+                        <div class="dpad-center"></div>
+                        <button class="dpad-btn dpad-right" data-dir="right">►</button>
+                    </div>
+                    <button class="dpad-btn dpad-down" data-dir="down">▼</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== PANTALLA: RESULTADOS ==================== -->
+    <div id="screen-results" class="screen">
+        <div class="results-container">
+            <h2 id="results-title">¡Partida terminada!</h2>
+            <div class="results-score-area">
+                <div class="results-pair">
+                    <span id="results-p1">Jugador 1</span>
+                    <span class="results-ampersand">&</span>
+                    <span id="results-p2">Jugador 2</span>
+                </div>
+                <div class="results-score">
+                    <span class="results-label">Puntaje Total</span>
+                    <span class="results-value" id="results-score">0</span>
+                </div>
+                <div class="results-level">
+                    <span class="results-label">Nivel Alcanzado</span>
+                    <span class="results-value" id="results-level">1</span>
+                </div>
+            </div>
+
+            <!-- Premio -->
+            <div id="prize-area" class="prize-area" style="display:none;">
+                <div class="prize-badge">🏆</div>
+                <h3 id="prize-title">¡Ganaste un premio!</h3>
+                <p id="prize-description"></p>
+                <p class="prize-claim">📱 Muestra esta pantalla en el stand de Rosquillas Caleñas para reclamarlo</p>
+                <div class="prize-code" id="prize-code"></div>
+            </div>
+
+            <!-- Leaderboard -->
+            <div class="leaderboard-area">
+                <h3>🏅 Top Parejas</h3>
+                <div id="leaderboard-list" class="leaderboard-list">
+                    <p class="leaderboard-empty">Cargando ranking...</p>
+                </div>
+            </div>
+
+            <!-- Chat post-partida -->
+            <div id="post-chat-panel" class="post-chat-panel">
+                <div class="chat-header"><span>💬 Sigan conversando</span></div>
+                <div class="chat-messages" id="post-chat-messages"></div>
+                <div class="chat-input-area">
+                    <input type="text" id="post-chat-input" placeholder="Escribe..." maxlength="100" autocomplete="off">
+                    <button id="btn-post-send" class="btn-send">➤</button>
+                </div>
+            </div>
+
+            <div class="results-actions">
+                <button id="btn-play-again" class="btn-primary">🔄 Jugar de nuevo juntos</button>
+                <button id="btn-exit" class="btn-secondary">Salir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== PANTALLA: CHAT MÓVIL EXPANDIDO ==================== -->
+    <div id="mobile-chat-overlay" class="mobile-chat-overlay" style="display:none;">
+        <div class="mobile-chat-container">
+            <div class="chat-header">
+                <span>💬 Chat</span>
+                <button id="btn-close-mobile-chat" class="btn-chat-toggle">✕</button>
+            </div>
+            <div class="chat-messages" id="mobile-chat-messages"></div>
+            <div class="chat-input-area">
+                <input type="text" id="mobile-chat-input" placeholder="Escribe..." maxlength="100" autocomplete="off">
+                <button id="btn-mobile-send" class="btn-send">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botón flotante de chat en móvil durante juego -->
+    <button id="btn-mobile-chat-fab" class="mobile-chat-fab" style="display:none;">💬</button>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+
+    <!-- Scripts del juego -->
+    <script src="network.js"></script>
+    <script src="chat.js"></script>
+    <script src="game.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
