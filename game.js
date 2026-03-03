@@ -56,13 +56,14 @@ const ROWS = 21;
 const GHOST_COLORS = ['#FF0000', '#FFB8DE', '#00FFFF', '#FFB852'];
 const GHOST_NAMES = ['Blinky', 'Pinky', 'Inky', 'Clyde'];
 
-// Configuración por nivel
+// Configuración por nivel (velocidades en tiles/ms)
+// A 60fps (delta~16.67ms): pacSpeed 0.005 → ~5 tiles/s, ghostSpeed 0.003 → ~3 tiles/s
 const LEVEL_CONFIG = [
-    { ghostSpeed: 0.04, pacSpeed: 0.055, frightenedTime: 8000, ghostDelay: [0, 3, 6, 9] },
-    { ghostSpeed: 0.05, pacSpeed: 0.06,  frightenedTime: 6000, ghostDelay: [0, 2, 4, 7] },
-    { ghostSpeed: 0.06, pacSpeed: 0.065, frightenedTime: 4000, ghostDelay: [0, 1, 3, 5] },
-    { ghostSpeed: 0.065,pacSpeed: 0.068, frightenedTime: 3000, ghostDelay: [0, 0, 2, 3] },
-    { ghostSpeed: 0.07, pacSpeed: 0.07,  frightenedTime: 2000, ghostDelay: [0, 0, 1, 2] },
+    { ghostSpeed: 0.003,  pacSpeed: 0.005,  frightenedTime: 10000, ghostDelay: [0, 5, 10, 15] },
+    { ghostSpeed: 0.0035, pacSpeed: 0.0055, frightenedTime: 8000,  ghostDelay: [0, 4, 8, 12] },
+    { ghostSpeed: 0.004,  pacSpeed: 0.006,  frightenedTime: 7000,  ghostDelay: [0, 3, 6, 9] },
+    { ghostSpeed: 0.0045, pacSpeed: 0.006,  frightenedTime: 5000,  ghostDelay: [0, 2, 4, 6] },
+    { ghostSpeed: 0.005,  pacSpeed: 0.006,  frightenedTime: 4000,  ghostDelay: [0, 1, 3, 4] },
 ];
 
 class GameEngine {
@@ -440,7 +441,7 @@ class GameEngine {
 
     // Mover fantasma comido de vuelta a la casa
     _moverFantasmaACasa(ghost, delta) {
-        const speed = 0.1 * delta;
+        const speed = 0.008 * delta;
         const homeX = 9, homeY = 9;
         const dx = homeX - ghost.x;
         const dy = homeY - ghost.y;
