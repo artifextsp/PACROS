@@ -1,6 +1,7 @@
 /* ========================================
    MAIN.JS - Orquestador principal
    Conecta pantallas, red, chat y juego
+   100% cooperativo: dos personas, dos Pac-Men
    ======================================== */
 
 (function () {
@@ -20,7 +21,6 @@
         btnPlay: document.getElementById('btn-play'),
         waitingStatus: document.getElementById('waiting-status'),
         waitingTimer: document.getElementById('waiting-timer'),
-        btnPlayAI: document.getElementById('btn-play-ai'),
         btnCancelWait: document.getElementById('btn-cancel-wait'),
         introP1Name: document.getElementById('intro-p1-name'),
         introP2Name: document.getElementById('intro-p2-name'),
@@ -56,8 +56,6 @@
     let game = null;
     let waitingInterval = null;
     let syncInterval = null;
-    let aiInterval = null;
-    let isAIMode = false;
 
     // ==================== NAVEGACIÓN ENTRE PANTALLAS ====================
 
@@ -115,16 +113,13 @@
     function startMatchmaking(name) {
         showScreen('waiting');
         dom.waitingStatus.textContent = 'Buscando a tu media rosquilla...';
-        dom.btnPlayAI.style.display = 'none';
-        isAIMode = false;
 
         let elapsed = 0;
         waitingInterval = setInterval(() => {
             elapsed++;
             dom.waitingTimer.textContent = `${elapsed}s esperando...`;
-            if (elapsed >= 30) {
-                dom.btnPlayAI.style.display = 'block';
-                dom.waitingStatus.textContent = '¿Nadie por ahí? Juega con IA mientras tanto';
+            if (elapsed >= 60) {
+                dom.waitingStatus.textContent = 'Sigue esperando... comparte el link con alguien 🍩';
             }
         }, 1000);
 
@@ -137,12 +132,6 @@
             network.cancelarBusqueda();
             showScreen('intro');
         });
-
-        dom.btnPlayAI.addEventListener('click', () => {
-            clearInterval(waitingInterval);
-            network.cancelarBusqueda();
-            startAIGame();
-        });
     }
 
     // ==================== CALLBACKS DE RED ====================
@@ -153,12 +142,14 @@
             showPlayerIntro(data.partnerName);
         });
 
+        // Host recibe input del guest → mueve pacman2
         network.on('inputRecibido', (input) => {
             if (game && game.running && network.isHost) {
                 game.setPartnerDirection(input.dir);
             }
         });
 
+        // Guest recibe estado completo del host → renderiza todo
         network.on('estadoJuego', (state) => {
             if (game && !network.isHost) {
                 game.applyState(state);
@@ -177,10 +168,13 @@
                 chat.mostrarMensajeSistema('Tu compañero se desconectó 😢');
             }
             if (game && game.running) {
-                game.isAI = true;
-                isAIMode = true;
-                chat.mostrarMensajeSistema('La IA tomó el control del otro jugador');
-                startAILoop();
+                game.pause();
+                dom.gameOverlay.style.display = 'flex';
+                dom.overlayText.textContent = '⚠️ Compañero desconectado';
+                setTimeout(() => {
+                    game.stop();
+                    showResults(game.score, game.level, false);
+                }, 3000);
             }
         });
 
@@ -201,11 +195,11 @@
         showScreen('introPlayers');
 
         if (network.isHost) {
-            dom.introP1Name.textContent = network.playerName;
-            dom.introP2Name.textContent = partnerName;
+            dom.introP1Name.textContent = network.playerName + ' 🟡';
+            dom.introP2Name.textContent = partnerName + ' 🟢';
         } else {
-            dom.introP1Name.textContent = partnerName;
-            dom.introP2Name.textContent = network.playerName;
+            dom.introP1Name.textContent = partnerName + ' 🟡';
+            dom.introP2Name.textContent = network.playerName + ' 🟢';
         }
 
         let count = 5;
@@ -229,21 +223,24 @@
     function startGame(isHost) {
         showScreen('game');
 
-        // Inicializar chat
         chat.init();
-        chat.mostrarMensajeSistema('¡La partida comenzó! 🍩 ¡Coordínense!');
 
-        // Mostrar controles táctiles en móvil
+        if (isHost) {
+            chat.mostrarMensajeSistema('¡La partida comenzó! 🟡 Tú controlas el Pac-Man amarillo');
+        } else {
+            chat.mostrarMensajeSistema('¡La partida comenzó! 🟢 Tú controlas el Pac-Man verde');
+        }
+        chat.mostrarMensajeSistema('¡Coordínense para limpiar el laberinto juntos! 🍩');
+
         if (window.innerWidth <= 768) {
             dom.btnMobileChatFab.style.display = 'flex';
+            dom.touchControls.style.display = 'flex';
         }
 
-        // Configurar juego
         game.guestMode = !isHost;
         game.initLevel(1);
         setupGameCallbacks();
 
-        // Mostrar "¡LISTO!" brevemente
         dom.gameOverlay.style.display = 'flex';
         dom.overlayText.textContent = '¡LISTO!';
 
@@ -251,37 +248,9 @@
             dom.gameOverlay.style.display = 'none';
             game.start();
 
-            // Sincronización: solo el host envía estado
             if (isHost) {
                 startSyncLoop();
             }
-        }, 2000);
-
-        // Redimensionar canvas
-        setTimeout(() => game._resizeCanvas(), 100);
-    }
-
-    // Iniciar juego contra IA
-    function startAIGame() {
-        isAIMode = true;
-        game.guestMode = false;
-
-        showScreen('game');
-
-        // Mostrar controles táctiles en móvil
-        if (window.innerWidth <= 768) {
-            dom.touchControls.style.display = 'flex';
-        }
-
-        game.initLevel(1);
-        setupGameCallbacks();
-
-        dom.gameOverlay.style.display = 'flex';
-        dom.overlayText.textContent = '¡MODO IA! 🤖';
-
-        setTimeout(() => {
-            dom.gameOverlay.style.display = 'none';
-            game.start();
         }, 2000);
 
         setTimeout(() => game._resizeCanvas(), 100);
@@ -304,12 +273,10 @@
 
         game.onGameOver = (score, level, won) => {
             stopSyncLoop();
-            stopAILoop();
             showResults(score, level, won || false);
         };
 
         game.onLevelComplete = (level, score) => {
-            // Mostrar overlay de nivel completado
             dom.gameOverlay.style.display = 'flex';
             dom.overlayText.textContent = `¡Nivel ${level} completado! 🎉`;
 
@@ -332,7 +299,6 @@
         syncInterval = setInterval(() => {
             if (game && game.running && network.isHost) {
                 frameCount++;
-                // Enviar estado cada 3 ticks (~100ms) para reducir uso de Firebase
                 if (frameCount % 3 === 0) {
                     network.enviarEstadoJuego(game.getState());
                 }
@@ -344,22 +310,6 @@
         if (syncInterval) {
             clearInterval(syncInterval);
             syncInterval = null;
-        }
-    }
-
-    function startAILoop() {
-        stopAILoop();
-        aiInterval = setInterval(() => {
-            if (game && game.running) {
-                game.updateAI();
-            }
-        }, 300);
-    }
-
-    function stopAILoop() {
-        if (aiInterval) {
-            clearInterval(aiInterval);
-            aiInterval = null;
         }
     }
 
@@ -380,10 +330,12 @@
 
             if (dir) {
                 e.preventDefault();
-                // En modo local siempre se aplica la dirección
-                game.setDirection(dir);
-                // En multijugador, enviar al compañero
-                if (!isAIMode && network && network.roomRef) {
+
+                if (network && network.isHost) {
+                    // Host: controla pacman1 directamente
+                    game.setDirection(dir);
+                } else if (network && network.roomRef) {
+                    // Guest: envía input al host → controlará pacman2
                     network.enviarInput(dir);
                 }
             }
@@ -395,8 +347,9 @@
                 e.preventDefault();
                 const dir = btn.dataset.dir;
                 if (dir && game && game.running) {
-                    game.setDirection(dir);
-                    if (!isAIMode && network && network.roomRef) {
+                    if (network && network.isHost) {
+                        game.setDirection(dir);
+                    } else if (network && network.roomRef) {
                         network.enviarInput(dir);
                     }
                 }
@@ -431,20 +384,14 @@
 
     function setupResultsScreen() {
         dom.btnPlayAgain.addEventListener('click', () => {
-            if (isAIMode) {
-                restartGame();
-            } else {
-                network.solicitarReinicio();
-                dom.btnPlayAgain.textContent = 'Esperando al compañero...';
-                dom.btnPlayAgain.disabled = true;
-            }
+            network.solicitarReinicio();
+            dom.btnPlayAgain.textContent = 'Esperando al compañero...';
+            dom.btnPlayAgain.disabled = true;
         });
 
         dom.btnExit.addEventListener('click', () => {
             network.desconectar();
             stopSyncLoop();
-            stopAILoop();
-            isAIMode = false;
             dom.btnMobileChatFab.style.display = 'none';
             showScreen('intro');
         });
@@ -455,26 +402,17 @@
         dom.btnMobileChatFab.style.display = 'none';
 
         dom.resultsTitle.textContent = won ? '🎉 ¡VICTORIA! 🎉' : '💀 ¡Game Over!';
-        dom.resultsP1.textContent = network.playerName || 'Tú';
-        dom.resultsP2.textContent = isAIMode ? 'IA 🤖' : (network.partnerName || 'Compañero');
+        dom.resultsP1.textContent = network.playerName || 'Jugador 1';
+        dom.resultsP2.textContent = network.partnerName || 'Jugador 2';
         dom.resultsScore.textContent = score;
         dom.resultsLevel.textContent = level;
 
-        // Determinar premio
         showPrize(score);
-
-        // Guardar y mostrar leaderboard
-        if (!isAIMode) {
-            network.guardarPuntaje(score, level);
-        }
+        network.guardarPuntaje(score, level);
         loadLeaderboard();
 
-        // Resetear botón de jugar de nuevo
-        dom.btnPlayAgain.textContent = '🔄 Jugar de nuevo';
+        dom.btnPlayAgain.textContent = '🔄 Jugar de nuevo juntos';
         dom.btnPlayAgain.disabled = false;
-        if (isAIMode) {
-            dom.btnPlayAgain.textContent = '🔄 Jugar de nuevo (IA)';
-        }
     }
 
     function showPrize(score) {
@@ -484,25 +422,21 @@
             prize = {
                 title: '🌟 ¡MEDIA ROSQUILLA VIP! 🌟',
                 desc: 'Premio Élite: Experiencia VIP "Media Rosquilla" con tour gastronómico por Cali',
-                emoji: '👑'
             };
         } else if (score >= 5000) {
             prize = {
                 title: '🎉 ¡Tour por Cali!',
                 desc: 'Premio Alto: Tour guiado por los mejores spots de Cali con degustación',
-                emoji: '🗺️'
             };
         } else if (score >= 3000) {
             prize = {
                 title: '🎬 ¡Entradas al Cine!',
                 desc: 'Premio Medio: 2 entradas al cine con combo de rosquillas',
-                emoji: '🎬'
             };
         } else if (score >= 1000) {
             prize = {
                 title: '🍩 ¡Pack de Rosquillas!',
                 desc: 'Premio Básico: Pack de 12 rosquillas caleñas artesanales',
-                emoji: '🍩'
             };
         }
 
@@ -510,7 +444,6 @@
             dom.prizeArea.style.display = 'block';
             dom.prizeTitle.textContent = prize.title;
             dom.prizeDescription.textContent = prize.desc;
-            // Código de premio ficticio
             const code = 'RQ-' + Date.now().toString(36).toUpperCase().slice(-6);
             dom.prizeCode.textContent = 'Código: ' + code;
         } else {
@@ -547,13 +480,7 @@
         game.score = 0;
         game.lives = 3;
         stopSyncLoop();
-        stopAILoop();
-
-        if (isAIMode) {
-            startAIGame();
-        } else {
-            startGame(network.isHost);
-        }
+        startGame(network.isHost);
     }
 
     // ==================== ARRANQUE ====================
